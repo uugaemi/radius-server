@@ -1,0 +1,35 @@
+name: CI/CD to On-Prem Kubernetes with Helm
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: 🧱 소스 코드 빌드
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 소스 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: ☕️ JDK 25 설정
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: 🛠 application.yml 생성
+        run: |
+          mkdir -p ./src/main/resources
+          echo "${{ secrets.APPLICATION }}" > ./src/main/resources/application.yml
+
+      - name: ⚡ Gradle Build (테스트 제외)
+        run: ./gradlew build -x test
+
+      - name: 🐳 Docker Build & Push to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/radius-server:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/radius-server:latest
+          docker logout
